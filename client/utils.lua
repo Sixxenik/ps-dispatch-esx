@@ -14,19 +14,19 @@ end
 
 function GetPlayerGender()
     local gender = locale('male')
-    if QBCore.Functions.GetPlayerData().charinfo.gender == 1 then
+    if ESX.GetPlayerData().sex == 'Female' then
         gender = locale('female')
     end
     return gender
 end
 
 function GetIsHandcuffed()
-    return QBCore.Functions.GetPlayerData()?.metadata?.ishandcuffed
+    return 
 end
 
 function IsOnDuty()
     if Config.OnDutyOnly then
-        if QBCore.Functions.GetPlayerData().job.onduty then
+        if exports['six-multijob']:DutyStatus() then
             return true
         else
             return false
@@ -38,7 +38,7 @@ end
 ---@return boolean
 local function HasPhone()
     for _, item in ipairs(Config.PhoneItems) do
-        if QBCore.Functions.HasItem(item) then
+        if exports.ox_inventory:GetItemCount(item) > 0 then
             return true
         end
     end
@@ -61,7 +61,7 @@ local function getVehicleColor(vehicle)
     local color2 = Config.Colors[tostring(vehicleColor2)]
 
     if color1 and color2 then
-        return color2 .. " on " .. color1
+        return color1..' | Dodatkowy: '..color2
     elseif color1 then
         return color1
     elseif color2 then
@@ -146,7 +146,14 @@ function IsCallAllowed(message)
 
     if msgLength == 0 then return false end
     if GetIsHandcuffed() then return false end
-    if Config.PhoneRequired and not HasPhone() then QBCore.Functions.Notify('You need a communications device for this.', 'error', 5000) return false end
+    if Config.PhoneRequired and not HasPhone() then
+        lib.notify({
+            duration = 5000,
+            title = 'Nie posiadasz telefonu',
+            type = 'error'
+        })
+          return false 
+        end
 
     return true
 end

@@ -24,8 +24,9 @@ RegisterServerEvent('ps-dispatch:server:notify', function(data)
 end)
 
 RegisterServerEvent('ps-dispatch:server:attach', function(id, player)
-    for i=1, #calls do
+    for i = 1, #calls do
         if calls[i]['id'] == id then
+
             for j = 1, #calls[i]['units'] do
                 if calls[i]['units'][j]['citizenid'] == player.citizenid then
                     return
@@ -61,6 +62,28 @@ lib.callback.register('ps-dispatch:callback:getCalls', function(source)
     return calls
 end)
 
+lib.callback.register('ps-dispatch:callback:getFirstName', function(source)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    local row = MySQL.single.await('SELECT `firstname` FROM `users` WHERE `identifier` = ? LIMIT 1', {
+        xPlayer.identifier
+    })
+
+    if not row then return end
+    return row.firstname
+end)
+
+lib.callback.register('ps-dispatch:callback:getLastName', function(source)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    local row = MySQL.single.await('SELECT `lastname` FROM `users` WHERE `identifier` = ? LIMIT 1', {
+        xPlayer.identifier
+    })
+
+    if not row then return end
+    return row.lastname
+end)
+
+
+
 -- Commands
 lib.addCommand('dispatch', {
     help = locale('open_dispatch')
@@ -70,14 +93,14 @@ end)
 
 lib.addCommand('911', {
     help = 'Send a message to 911',
-    params = { { name = 'message', type = 'string', help = '911 Message' }},
+    params = { { name = 'message', type = 'string', help = '911 Message' } },
 }, function(source, args, raw)
     local fullMessage = raw:sub(5)
     TriggerClientEvent('ps-dispatch:client:sendEmergencyMsg', source, fullMessage, "911", false)
 end)
 lib.addCommand('911a', {
     help = 'Send an anonymous message to 911',
-    params = { { name = 'message', type = 'string', help = '911 Message' }},
+    params = { { name = 'message', type = 'string', help = '911 Message' } },
 }, function(source, args, raw)
     local fullMessage = raw:sub(5)
     TriggerClientEvent('ps-dispatch:client:sendEmergencyMsg', source, fullMessage, "911", true)
@@ -85,7 +108,7 @@ end)
 
 lib.addCommand('311', {
     help = 'Send a message to 311',
-    params = { { name = 'message', type = 'string', help = '311 Message' }},
+    params = { { name = 'message', type = 'string', help = '311 Message' } },
 }, function(source, args, raw)
     local fullMessage = raw:sub(5)
     TriggerClientEvent('ps-dispatch:client:sendEmergencyMsg', source, fullMessage, "311", false)
@@ -93,9 +116,8 @@ end)
 
 lib.addCommand('311a', {
     help = 'Send an anonymous message to 311',
-    params = { { name = 'message', type = 'string', help = '311 Message' }},
+    params = { { name = 'message', type = 'string', help = '311 Message' } },
 }, function(source, args, raw)
     local fullMessage = raw:sub(5)
     TriggerClientEvent('ps-dispatch:client:sendEmergencyMsg', source, fullMessage, "311", true)
 end)
-

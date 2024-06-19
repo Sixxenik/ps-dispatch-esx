@@ -1,7 +1,7 @@
-QBCore = exports['qb-core']:GetCoreObject()
+ESX = exports["es_extended"]:getSharedObject()
 PlayerData = {}
 inHuntingZone, inNoDispatchZone = false, false
-huntingzone, nodispatchzone = nil , nil
+huntingzone, nodispatchzone = nil, nil
 
 local blips = {}
 local radius2 = {}
@@ -16,22 +16,22 @@ local function toggleUI(bool)
     SendNUIMessage({ action = "setVisible", data = bool })
 end
 
-local function setupDispatch()
-    local playerInfo = QBCore.Functions.GetPlayerData()
+function setupDispatch()
     local locales = lib.getLocales()
+    Citizen.Wait(150)
     PlayerData = {
         charinfo = {
-            firstname = playerInfo.charinfo.firstname,
-            lastname = playerInfo.charinfo.lastname
+            firstname = lib.callback.await('ps-dispatch:callback:getFirstName', false),
+            lastname = lib.callback.await('ps-dispatch:callback:getLastName', false)
         },
         metadata = {
-            callsign = playerInfo.metadata.callsign
+            callsign = exports["policetools"]:getCallsign()
         },
-        citizenid = playerInfo.citizenid,
+        citizenid = exports["policetools"]:getCallsign(),
         job = {
-            type = playerInfo.job.type,
-            name = playerInfo.job.name,
-            label = playerInfo.job.label
+            type = ESX.PlayerData.job.name,
+            name = ESX.PlayerData.job.name,
+            label = ESX.PlayerData.job.label,
         },
     }
 
@@ -54,7 +54,7 @@ end
 ---@param data string | table -- The player job or an array of jobs to check against
 ---@return boolean -- Returns true if the job is valid
 local function isJobValid(data)
-    local jobType = PlayerData.job.type
+    local jobType = PlayerData.job.name
 
     if type(data) == "string" then
         return lib.table.contains(Config.Jobs, data)
@@ -66,7 +66,8 @@ local function isJobValid(data)
 end
 
 local function openMenu()
-    if not isJobValid(PlayerData.job.type) then return end
+    if not isJobValid(PlayerData.job.name) then return end
+    if not exports['six-jobs']:DutyStatus() then return end
 
     local calls = lib.callback.await('ps-dispatch:callback:getCalls', false)
     if #calls == 0 then
@@ -78,7 +79,8 @@ local function openMenu()
 end
 
 local function setWaypoint()
-    if not isJobValid(PlayerData.job.type) then return end
+    if not isJobValid(PlayerData.job.name) then return end
+    if not exports['six-jobs']:DutyStatus() then return end
 
     local data = lib.callback.await('ps-dispatch:callback:getLatestDispatch', false)
 
@@ -87,7 +89,7 @@ local function setWaypoint()
     if data.alertTime == nil then data.alertTime = Config.AlertTime end
     local timer = data.alertTime * 1000
     
-    if not waypointCooldown and lib.table.contains(data.jobs, PlayerData.job.type) then
+    if not waypointCooldown and lib.table.contains(data.jobs, PlayerData.job.name) then
         SetNewWaypoint(data.coords.x, data.coords.y)
         TriggerServerEvent('ps-dispatch:server:attach', data.id, PlayerData)
         lib.notify({ description = locale('waypoint_set'), position = 'top', type = 'success' })
@@ -173,61 +175,18 @@ end
 
 -- Zone Functions --
 function createZones()
-    -- Hunting Zone --
-    if Config.Locations['HuntingZones'][1] then
-    	for _, hunting in pairs(Config.Locations["HuntingZones"]) do
-            -- Creates the Blips
-            if Config.EnableHuntingBlip then
-                local blip = AddBlipForCoord(hunting.coords.x, hunting.coords.y, hunting.coords.z)
-                local huntingradius = AddBlipForRadius(hunting.coords.x, hunting.coords.y, hunting.coords.z, hunting.radius)
-                SetBlipSprite(blip, 442)
-                SetBlipAsShortRange(blip, true)
-                SetBlipScale(blip, 0.8)
-                SetBlipColour(blip, 0)
-                SetBlipColour(huntingradius, 0)
-                SetBlipAlpha(huntingradius, 40)
-                BeginTextCommandSetBlipName("STRING")
-                AddTextComponentString(hunting.label)
-                EndTextCommandSetBlipName(blip)
-            end
-            -- Creates the Sphere --
-            huntingzone = lib.zones.sphere({
-                coords = hunting.coords,
-                radius = hunting.radius,
-                debug = Config.Debug,
-                onEnter = function()
-                    inHuntingZone = true
-                end,
-                onExit = function()
-                    inHuntingZone = false
-                end
-            })
-    	end
-    end
-    -- No Dispatch Zone --
-    if Config.Locations['NoDispatchZones'][1] then
-    	for _, nodispatch in pairs(Config.Locations["NoDispatchZones"]) do
-            nodispatchzone = lib.zones.box({
-                coords = nodispatch.coords,
-                size = vec3(nodispatch.length, nodispatch.width, nodispatch.maxZ - nodispatch.minZ),
-                rotation = nodispatch.heading,
-                debug = Config.Debug,
-                onEnter = function()
-                    inNoDispatchZone = true
-                end,
-                onExit = function()
-                    inNoDispatchZone = false
-                end
-            })
-    	end
-    end
+   
 end
 
 local function removeZones()
     -- Hunting Zone --
-    huntingzone:remove()
+    if huntingzone ~= nil then
+   -- huntingzone:remove()
+    end
     -- No Dispatch Zone --
-    nodispatchzone:remove()
+    if nodispatchzone ~= nil then
+    --nodispatchzone:remove()
+    end
 end
 
 -- Keybind
@@ -252,7 +211,7 @@ RegisterNetEvent('ps-dispatch:client:notify', function(data, source)
     
     if alertsDisabled then return end
     if not isJobValid(data.jobs) then return end
-    if not IsOnDuty() then return end
+        if not exports['six-jobs']:DutyStatus() then return end
 
     timerCheck = true
 
@@ -287,8 +246,9 @@ RegisterNetEvent('ps-dispatch:client:notify', function(data, source)
 end)
 
 RegisterNetEvent('ps-dispatch:client:openMenu', function(data)
-    if not isJobValid(PlayerData.job.type) then return end
-
+    if not isJobValid(PlayerData.job.name) then return end
+    if not exports['six-jobs']:DutyStatus() then return end
+    
     if #data == 0 then
         lib.notify({ description = locale('no_calls'), position = 'top', type = 'error' })
     else
@@ -297,12 +257,27 @@ RegisterNetEvent('ps-dispatch:client:openMenu', function(data)
     end
 end)
 
--- EventHandlers
-RegisterNetEvent("QBCore:Client:OnJobUpdate", setupDispatch)
 
-AddEventHandler('QBCore:Client:OnPlayerLoaded', setupDispatch)
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded',function(xPlayer, isNew, skin)
+    Citizen.Wait(15000)
+  ESX.PlayerData = xPlayer
+  setupDispatch()
+end)
 
-AddEventHandler('QBCore:Client:OnPlayerUnload', removeZones)
+RegisterNetEvent('esx:setJob', function(player, job, lastJob)
+    Citizen.Wait(1000)
+    setupDispatch()
+end)
+
+RegisterNetEvent('esx:onPlayerLogout')
+AddEventHandler('esx:onPlayerLogout', function()
+    ESX.PlayerLoaded = false
+    ESX.PlayerData = {}
+    removeZones()
+end)
+
+
 
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
@@ -327,6 +302,7 @@ RegisterNUICallback("attachUnit", function(data, cb)
 end)
 
 RegisterNUICallback("detachUnit", function(data, cb)
+    print(PlayerData)
     TriggerServerEvent('ps-dispatch:server:detach', data.id, PlayerData)
     DeleteWaypoint()
     cb("ok")
